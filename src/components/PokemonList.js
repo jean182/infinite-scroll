@@ -1,53 +1,44 @@
 import _ from "lodash";
-import React, { Component } from "react";
+import React, { useEffect } from "react";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
-import { loadPokemonList, loadMorePokemon } from "../redux/modules/pokemonList";
+import { loadPokemonList, displayMorePokemon, pokemonListFilterSelector, pokemonListCount } from "../redux/modules/pokemonList";
 import ListItemLoader from "./ListItemLoader";
 import PokemonListItem from "./PokemonListItem";
-import { getId } from "../helpers/pokemonUtils";
 
-class PokemonList extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      currentCount: 20,
-    };
-  }
+const PokemonList = props => {
+  const {
+    fetchActionCreator,
+    displayMore,
+    isLoading,
+    error,
+    pokemonList,
+    totalPokemonCount
+  } = props;
 
-  componentDidMount() {
-    const { fetchActionCreator } = this.props;
+  useEffect(() => {
     fetchActionCreator();
-  }
+  }, [fetchActionCreator]);
 
-  handleScroll = event => {
-    const { loadMoreActionCreator } = this.props;
-    const { currentCount } = this.state;
+  const handleScroll = event => {
     const element = event.target;
-    if (element.scrollHeight - element.scrollTop === element.clientHeight) {
-      loadMoreActionCreator(currentCount);
-      this.setState({
-        currentCount: currentCount + 20,
-      });
+    if ((element.scrollHeight - element.scrollTop === element.clientHeight) && totalPokemonCount > pokemonList.length) {
+      displayMore();
     }
   };
 
-
-  render() {
-    const { isLoading, error, pokemonList } = this.props;
-    if (_.isEmpty(pokemonList) && isLoading) return <ListItemLoader />;
-    if (error) return <p>Error</p>;
-    return (
+  if (_.isEmpty(pokemonList) && isLoading) return <ListItemLoader />;
+  if (error) return <p>Error</p>;
+  return (
       <div className="border m-5">
         <div
           className="row"
-          onScroll={this.handleScroll}
+          onScroll={handleScroll}
           style={{ height: "500px", overflow: "auto" }}
         >
           {_.isEmpty(pokemonList) && <p>No results for this search</p>}
           {pokemonList.map(pokemon => {
-            const { url, name } = pokemon;
-            const id = getId(url);
+            const { id, name } = pokemon;
             return (
               <div key={pokemon.url} className="col-sm-3">
                 <PokemonListItem id={id} name={name} />
@@ -66,23 +57,23 @@ class PokemonList extends Component {
             </div>
           </div>
         )}
-        <p className="text-muted ml-3">Displaying {pokemonList.length} pokemon of 807</p>
+        <p className="text-muted ml-3">Displaying {pokemonList.length} pokemon of {totalPokemonCount}</p>
       </div>
     )
-  }
-}
+  };
 
 const mapStateToProps = state => ({
   isLoading: state.pokemonListReducer.isLoading,
   error: state.pokemonListReducer.error,
-  pokemonList: state.pokemonListReducer.pokemonList,
+  pokemonList: pokemonListFilterSelector(state),
+  totalPokemonCount: pokemonListCount(state),
 });
 
 const mapDispatchToProps = dispatch => {
   return bindActionCreators(
     {
       fetchActionCreator: loadPokemonList,
-      loadMoreActionCreator: loadMorePokemon,
+      displayMore: displayMorePokemon,
     },
     dispatch,
   );
